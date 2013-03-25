@@ -35,7 +35,7 @@ class IntervalNode(object):
 		self.uct_coeff 		= uct_coeff
 		self.num_chunks 	= num_chunks
 		
-	def randomSubinterval(self):
+	def random_subinterval(self):
 		"""
 		Returns a random sub-interval as a tuple. The first parameter
 		is the index of the left hand side of the chunk
@@ -45,12 +45,12 @@ class IntervalNode(object):
 		chunk = randrange(self.num_chunks)
 		
 		return (chunk, chunk * self.chunk_width, (chunk + 1) * self.chunk_width)
-		
-	def isRoot(self):
+	
+	def is_root(self):
 		"""Checks whether or not we are a root node by checking if we have an interval set"""
 		return self.interval is None or self.parent is None
 	
-	def inflateRandomChild(self):
+	def inflate_random_child(self):
 		"""
 		Should be called when we have not examined all the intervals.
 		One option might be to inflate all the children but only set
@@ -73,11 +73,11 @@ class IntervalNode(object):
 		rand_chunk_index = sample(unvisited, 1)[0]
 		
 		#if a child doesn't already exist, we make a new one
-		node = self.makeChildForInterval(rand_chunk_index)
+		node = self.make_child_for_interval(rand_chunk_index)
 			
 		return node
 		
-	def bestChild(self):
+	def best_child(self):
 		"""Finds the best child representing an actino"""
 		if len(self.children) == 0:
 			return None
@@ -90,15 +90,15 @@ class IntervalNode(object):
 		else:
 			print repr([child.parent for child in self.children])
 			# if we have visited all the children, then we should simply take the one with the highest UCT score
-			return max(self.children, key=lambda child: child.uctValue)
+			return max(self.children, key=lambda child: child.uct_value)
 	
-	def findBestInterval(self):
+	def find_best_interval(self):
 		"""Descends the tree picking the best child at every step"""
 		cur_node = self
 		
 		# just follow the best nodes down the root
-		while cur_node.hasChildren:
-			cur_node = cur_node.bestChild()
+		while cur_node.has_children:
+			cur_node = cur_node.best_child()
 			
 		return cur_node.interval
 	
@@ -112,7 +112,7 @@ class IntervalNode(object):
 		"""Gets the width of each subinterval"""
 		return self.interval_width / self.num_chunks
 		
-	def makeChildForInterval(self, interval_index):
+	def make_child_for_interval(self, interval_index):
 		"""Adds a new child if it doesn't already exist for the given interval index"""
 		if self.children[interval_index] is not None:
 			return self.children[interval_index]
@@ -120,35 +120,35 @@ class IntervalNode(object):
 		self.children[interval_index] = IntervalNode((interval_index * self.chunk_width, (interval_index + 1) * self.chunk_width), self.uct_coeff, self.num_chunks)
 		
 		# now add the child to ourselves
-		self.addChild(self.children[interval_index], interval_index)
+		self.add_child(self.children[interval_index], interval_index)
 		
 		return self.children[interval_index]
 		
-	def hasChildForInterval(self, interval):
+	def has_child_for_interval(self, interval):
 		"""Checks to see if we have inflated a child for a given interval index"""
 		return self.children[interval] is None
 	
-	@property	
-	def uctValue(self):
+	@property
+	def uct_value(self):
 		""" Computes the UCT ranking for this node. Should only be called on children node (never the root)"""
-		if self.isRoot:
+		if self.is_root:
 			return None
 			
 		# compute the UCT value. We bias our win rate based on our parents visits and our own visits
 		return (self.wins / self.visits) + self.uct_coeff * sqrt(log(self.parent.visits) / self.visits)
 	
 	@property
-	def hasChildren(self):
+	def has_children(self):
 		return len(self.children) > 0
 	
 	@property
-	def isLeaf(self):
-		return not self.hasChildren
+	def is_leaf(self):
+		return not self.has_children
 		
 	def __repr__(self):
 		return '[%.5f, %.5f]' % (self.interval[0], self.interval[1])
 		
-	def propegateResult(self, result):
+	def propegate_result(self, result):
 		"""Propegates the UCT results back up the tree. The tuple should be the parameter, the value, and the result."""
 		self.visits += 1
 		
@@ -158,9 +158,9 @@ class IntervalNode(object):
 		
 		# propegates the result up the tree
 		if self.parent is not None:
-			self.parent.propegateResult(result)
+			self.parent.propegate_result(result)
 			
-	def addChild(self, child, chunk_index):
+	def add_child(self, child, chunk_index):
 		"""Sets the child at the specified chunk index"""
 		self.children[chunk_index] = child
 		child.parent = self
@@ -194,11 +194,11 @@ class UCTOptimizer(object):
 			
 		print 'Sampled: %s' % (win_loss, )
 		# inform the node about the samples
-		node.propegateResult((param, p, win_loss))
+		node.propegate_result((param, p, win_loss))
 		
 		return win_loss
 		 
-	def tuneParams(self, params):
+	def tune_params(self, params):
 		
 		"""
 		Tunes parameters should be list of tuples (name, start, end) against the program.
@@ -231,20 +231,20 @@ class UCTOptimizer(object):
 				# the best child call will also tend to inflate other children at the same level
 				# it returns None if we need to inflate a child
 				parent_node = cur_node
-				cur_node = parent_node.bestChild()
+				cur_node = parent_node.best_child()
 				
 				
 			# oops! we've fallen out of the tree. Randomly add a new if we are at a leaf node with a new sample.
 			# no notion of "playouts" unless we thought about fixed tree depth
-			new_child = parent_node.inflateRandomChild()
+			new_child = parent_node.inflate_random_child()
 			
 			self.sample(new_child, p1[0])
 		
 		# now find the best interval
-		print root.findBestInterval()
+		print root.find_best_interval()
 		
 if __name__ == "__main__":
 	tuner = UCTOptimizer(RUN_COMMAND, 100, .3)
-	params = tuner.tuneParams([('k', 0.0, 1000.0)])
+	params = tuner.tune_params([('k', 0.0, 1000.0)])
 	
 	print params
